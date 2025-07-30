@@ -24,7 +24,7 @@ def index():
       <script>
         const imagens = {{ imagens|tojson }};
         let index = 0;
-        const tempo = 5000;
+        const tempo = 7000;
         function trocarImagem() {
           index = (index + 1) % imagens.length;
           document.getElementById('slideshow').src = "/pictures/" + imagens[index];
