@@ -40,4 +40,5 @@ def imagens(filename):
     return send_from_directory(IMAGES_DIR, filename)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000)
+    port = int(os.environ.get('PORT', 8000))  # usa 8000 localmente, mas usa o PORT da Render se existir
+    app.run(host='0.0.0.0', port=port)
