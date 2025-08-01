@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Painel de Administração</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../static/dashboard.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
 </head>
 <body>
 
@@ -17,7 +17,7 @@
       <a onclick="mostrarGerenciamento()">Gerenciamento</a>
       <a onclick="mostrarPreview()">Pré-visualização</a>
       <a href="{{ url_for('index') }}" target="_blank">Abrir Slideshow</a>
-      <a href="{{ url_for('logout') }}" style="background: #dc3545; padding: 8px 12px; border-radius: 5px;">Sair</a>
+      <a href="{{ url_for('logout') }}" class="btn-sair">Sair</a>
     </nav>
   </header>
 
@@ -45,7 +45,6 @@
 
       <div class="section">
         <h3>Lista de Imagens</h3>
-
         <form id="form-deletar" method="post" action="{{ url_for('deletar_multiplas') }}">
           <label id="selecionar-tudo">
             <input type="checkbox" id="check-tudo"> Selecionar tudo
@@ -53,7 +52,7 @@
 
           <ul id="lista">
             {% for img in imagens %}
-            <li data-nome="{{ img }}">
+            <li data-nome='{{ img | tojson | safe }}'>
               <input type="checkbox" name="selecionadas" value="{{ img['id'] }}" class="checkbox-imagem">
               <img src="{{ img['url'] }}" alt="">
               <small class="img-numero"></small>
@@ -61,8 +60,7 @@
             {% endfor %}
           </ul>
 
-          <button type="button" onclick="salvarOrdem()" style="margin-top: 20px;">Atualizar Slideshow</button>
-
+          <button type="button" onclick="salvarOrdem()">Atualizar Slideshow</button>
           <button id="botao-deletar" type="submit">Deletar Selecionadas</button>
         </form>
       </div>
@@ -86,7 +84,7 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
   <script>
-    const imagens = {{ imagens|tojson }};
+    const imagens = {{ imagens|tojson|safe }};
     const tempo = {{ tempo }};
     let i = 0;
 
@@ -138,25 +136,20 @@
         tolerance: "pointer",
         distance: 5,
         delay: 0,
-        update: function () {
-          atualizarNumeracao();
-        }
+        update: atualizarNumeracao
       });
 
       atualizarNumeracao();
 
-      // Mostrar botão flutuante se alguma imagem estiver selecionada
       $(".checkbox-imagem, #check-tudo").on("change", function () {
         const selecionadas = $(".checkbox-imagem:checked").length;
         $("#botao-deletar").toggle(selecionadas > 0);
       });
 
-      // Selecionar tudo
       $("#check-tudo").on("change", function () {
         $(".checkbox-imagem").prop("checked", this.checked).trigger("change");
       });
 
-      // Confirmação ao deletar
       $("#form-deletar").on("submit", function (e) {
         const count = $(".checkbox-imagem:checked").length;
         if (count === 0) {
