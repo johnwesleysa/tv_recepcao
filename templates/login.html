@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login Admin</title>
+  <link rel="stylesheet" href="../static/styles.css" />
+  <link rel="stylesheet" href="../static/global.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <div class="logos">
+        <img src="../static/inspired_logo.png" alt="Inspired Logo" class="logo inspired">
+        <img src="../static/eleva_logo.png" alt="Eleva Logo" class="logo eleva">
+      </div>
+      <h1>Escola Eleva Recife</h1>
+      <p>Altere as mídias, organize qual deve aparecer primeiro, defina o tempo transição!</p>
+    </div>
+
+    <div class="right-panel">
+      <h2>Hello Again!</h2>
+      <form method="post">
+        <input type="password" name="senha" placeholder="Password" required />
+        <button type="submit" class="login-btn">Login</button>
+      </form>
+
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <ul class="message-list">
+        {% for msg in messages %}
+        <li class="message-error">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+</body>
+</html>

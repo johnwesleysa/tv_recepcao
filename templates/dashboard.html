@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Administração</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../static/dashboard.css">
+</head>
+<body>
+
+  <header>
+    <div class="logos" onclick="mostrarPreview()">
+      <img src="{{ url_for('static', filename='eleva_logo.png') }}" alt="Logo Eleva">
+      <img src="{{ url_for('static', filename='inspired_logo.png') }}" alt="Logo Inspired">
+    </div>
+    <nav>
+      <a onclick="mostrarGerenciamento()">Gerenciamento</a>
+      <a onclick="mostrarPreview()">Pré-visualização</a>
+      <a href="{{ url_for('index') }}" target="_blank">Abrir Slideshow</a>
+      <a href="{{ url_for('logout') }}" style="background: #dc3545; padding: 8px 12px; border-radius: 5px;">Sair</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div id="preview-container">
+      <img id="preview" src="{{ imagens[0]['url'] if imagens else '' }}" alt="Preview">
+    </div>
+
+    <div id="gerenciamento">
+      <div class="section">
+        <h2>Gerenciamento do Slideshow</h2>
+        <form method="post" enctype="multipart/form-data">
+          <input type="file" name="arquivos" multiple>
+          <button type="submit">Enviar imagem</button>
+        </form>
+      </div>
+
+      <div class="section">
+        <h3>Tempo de Transição</h3>
+        <form method="post">
+          <input type="number" name="tempo" id="tempo" value="{{ tempo }}">
+          <button type="submit">Salvar tempo</button>
+        </form>
+      </div>
+
+      <div class="section">
+        <h3>Lista de Imagens</h3>
+
+        <form id="form-deletar" method="post" action="{{ url_for('deletar_multiplas') }}">
+          <label id="selecionar-tudo">
+            <input type="checkbox" id="check-tudo"> Selecionar tudo
+          </label>
+
+          <ul id="lista">
+            {% for img in imagens %}
+            <li data-nome="{{ img }}">
+              <input type="checkbox" name="selecionadas" value="{{ img['id'] }}" class="checkbox-imagem">
+              <img src="{{ img['url'] }}" alt="">
+              <small class="img-numero"></small>
+            </li>
+            {% endfor %}
+          </ul>
+
+          <button type="button" onclick="salvarOrdem()" style="margin-top: 20px;">Atualizar Slideshow</button>
+
+          <button id="botao-deletar" type="submit">Deletar Selecionadas</button>
+        </form>
+      </div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="success">
+            {% for msg in messages %}
+              <p>{{ msg }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <footer>
+    Desenvolvido por John Alencar
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+  <script>
+    const imagens = {{ imagens|tojson }};
+    const tempo = {{ tempo }};
+    let i = 0;
+
+    function trocarPreview() {
+      if (imagens.length > 0) {
+        i = (i + 1) % imagens.length;
+        document.getElementById("preview").src = imagens[i].url;
+      }
+    }
+
+    setInterval(trocarPreview, tempo);
+
+    function mostrarGerenciamento() {
+      document.getElementById("gerenciamento").style.display = "block";
+      document.getElementById("preview-container").style.display = "none";
+    }
+
+    function mostrarPreview() {
+      document.getElementById("gerenciamento").style.display = "none";
+      document.getElementById("preview-container").style.display = "flex";
+    }
+
+    function salvarOrdem() {
+      const ordem = [];
+      $("#lista li").each(function () {
+        ordem.push($(this).data("nome"));
+      });
+
+      fetch("/atualizar-ordem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ordem })
+      }).then(res => res.json()).then(() => {
+        alert("Ordem atualizada com sucesso!");
+      });
+    }
+
+    function atualizarNumeracao() {
+      const itens = document.querySelectorAll("#lista li");
+      itens.forEach((item, index) => {
+        const legenda = item.querySelector(".img-numero");
+        legenda.textContent = `Imagem ${index + 1}`;
+      });
+    }
+
+    $(function () {
+      $("#lista").sortable({
+        placeholder: "sortable-placeholder",
+        tolerance: "pointer",
+        distance: 5,
+        delay: 0,
+        update: function () {
+          atualizarNumeracao();
+        }
+      });
+
+      atualizarNumeracao();
+
+      // Mostrar botão flutuante se alguma imagem estiver selecionada
+      $(".checkbox-imagem, #check-tudo").on("change", function () {
+        const selecionadas = $(".checkbox-imagem:checked").length;
+        $("#botao-deletar").toggle(selecionadas > 0);
+      });
+
+      // Selecionar tudo
+      $("#check-tudo").on("change", function () {
+        $(".checkbox-imagem").prop("checked", this.checked).trigger("change");
+      });
+
+      // Confirmação ao deletar
+      $("#form-deletar").on("submit", function (e) {
+        const count = $(".checkbox-imagem:checked").length;
+        if (count === 0) {
+          alert("Nenhuma imagem selecionada.");
+          e.preventDefault();
+        } else if (!confirm(`Tem certeza que deseja deletar ${count} imagem(ns)?`)) {
+          e.preventDefault();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
