@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Slideshow Automático</title>
+  <style>
+    body { margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh; }
+    img { max-width:100%; max-height:100vh; object-fit:contain; }
+  </style>
+</head>
+<body>
+  <img id="slideshow" src="{{ imagens[0]['url'] if imagens else '' }}" alt="Preview">
+  <script>
+    const imagens = {{ imagens|tojson }};
+    let index = 0;
+    const tempo = {{ tempo }};
+    
+    if (imagens.length > 0) {
+      setInterval(() => {
+        index = (index + 1) % imagens.length;
+        document.getElementById('slideshow').src = imagens[index].url;
+      }, tempo);
+    }
+  </script>
+</body>
+</html>
