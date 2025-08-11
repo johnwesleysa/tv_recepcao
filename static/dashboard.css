@@ -107,6 +107,11 @@ body {
       border-radius: 6px;
     }
 
+    #lista li video {
+      max-width: 140px;
+      border-radius: 6px;
+    }
+
     .sortable-placeholder {
       background: #ddd;
       width: 160px;
