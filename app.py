@@ -130,6 +130,10 @@ def logout():
     return redirect(url_for('login'))
 
 
+from flask import request, redirect, url_for, flash
+from werkzeug.utils import secure_filename
+import cloudinary.uploader
+
 @app.route("/dashboard", methods=["GET", "POST"])
 @login_required
 def dashboard():
@@ -143,11 +147,17 @@ def dashboard():
             for arquivo in arquivos:
                 if arquivo and allowed_file(arquivo.filename) != '':
                     nome_seguro = secure_filename(arquivo.filename)
-                    resultado = cloudinary.uploader.upload(
-                        arquivo, 
-                        resource_type="auto"
+                    try:
+                        # Usando upload_large para streaming (chunks)
+                        resultado = cloudinary.uploader.upload_large(
+                            arquivo.stream,  # passar o stream do arquivo para evitar carregar tudo na memória
+                            resource_type="auto",
+                            chunk_size=6000000  # 6MB por chunk (ajustável)
                         )
-                    cloudinary.uploader.add_context("ordem=9999", public_ids=[resultado["public_id"]])
+                        cloudinary.uploader.add_context("ordem=9999", public_ids=[resultado["public_id"]])
+                    except Exception as e:
+                        flash(f"Erro ao enviar arquivo {nome_seguro}: {str(e)}")
+                        return redirect(url_for("dashboard"))
 
             flash("Mídias enviadas com sucesso!")
 
