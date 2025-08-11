@@ -30,8 +30,8 @@
       <div class="section">
         <h2>Gerenciamento do Slideshow</h2>
         <form method="post" enctype="multipart/form-data">
-          <input type="file" name="arquivos" multiple>
-          <button type="submit">Enviar imagem</button>
+          <input type="file" name="arquivos" multiple accept="image/*,video/*">
+          <button type="submit">Enviar mídia</button>
         </form>
       </div>
 
@@ -52,11 +52,17 @@
 
           <ul id="lista">
             {% for img in imagens %}
-            <li data-nome='{{ img | tojson | safe }}'>
-              <input type="checkbox" name="selecionadas" value="{{ img['id'] }}" class="checkbox-imagem">
-              <img src="{{ img['url'] }}" alt="">
-              <small class="img-numero"></small>
-            </li>
+              <li data-nome='{{ img | tojson | safe }}' data-id="{{ img['id'] }}" data-type="{{ img['resource_type'] }}">
+                <input type="checkbox" name="selecionadas" value="{{ img['id'] }}" class="checkbox-imagem">
+                
+                {% if img['url'].endswith(('.png', '.jpg', '.jpeg', '.webp')) %}
+                  <img src="{{ img['url'] }}" alt="">
+                {% else %}
+                  <video src="{{ img['url'] }}" controls muted></video>
+                {% endif %}
+                
+                <small class="img-numero"></small>
+              </li>
             {% endfor %}
           </ul>
 
@@ -110,7 +116,10 @@
     function salvarOrdem() {
       const ordem = [];
       $("#lista li").each(function () {
-        ordem.push($(this).data("nome"));
+        ordem.push({
+          id: $(this).data("id"),
+          resource_type: $(this).data("type")
+        });
       });
 
       fetch("/atualizar-ordem", {
@@ -126,7 +135,7 @@
       const itens = document.querySelectorAll("#lista li");
       itens.forEach((item, index) => {
         const legenda = item.querySelector(".img-numero");
-        legenda.textContent = `Imagem ${index + 1}`;
+        legenda.textContent = `Mídia ${index + 1}`;
       });
     }
 

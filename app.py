@@ -18,7 +18,7 @@ cloudinary.config(
     api_secret=os.environ.get("CLOUDINARY_API_SECRET")
 )
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'mp4', 'mov', 'avi', 'webm'}
 CONFIG_FILE = 'config.json'
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
@@ -40,22 +40,56 @@ def allowed_file(filename):
 
 
 def carregar_ordem():
-    resources = cloudinary.api.resources(type='upload', prefix='', context=True, max_results=100)
     imagens = []
-    for r in resources['resources']:
-        ordem = int(r['context']['custom'].get('ordem', 9999)) if 'context' in r and 'custom' in r['context'] else 9999
+    
+    # Buscar imagens
+    imgs = cloudinary.api.resources(
+        type='upload', 
+        resource_type='image', 
+        prefix='', 
+        context=True, 
+        max_results=100
+    )
+    for r in imgs['resources']:
+        ordem = int(r.get('context', {}).get('custom', {}).get('ordem', 9999))
         imagens.append({
             "url": r['secure_url'],
             "id": r['public_id'],
-            "ordem": ordem
+            "ordem": ordem,
+            "resource_type": "image"
         })
+
+    # Buscar vídeos
+    vids = cloudinary.api.resources(
+        type='upload', 
+        resource_type='video', 
+        prefix='', 
+        context=True, 
+        max_results=100
+    )
+    for r in vids['resources']:
+        ordem = int(r.get('context', {}).get('custom', {}).get('ordem', 9999))
+        imagens.append({
+            "url": r['secure_url'],
+            "id": r['public_id'],
+            "ordem": ordem,
+            "resource_type": "video"
+        })
+
     imagens.sort(key=lambda x: x['ordem'])
     return imagens
 
 
 def salvar_ordem(lista):
-    for i, img in enumerate(lista):
-        cloudinary.uploader.add_context(f"ordem={i}", public_ids=[img['id']])
+    for i, item in enumerate(lista):
+        public_id = item['id'] if isinstance(item, dict) else item
+        resource_type = item.get('resource_type', 'image') if isinstance(item, dict) else 'image'
+
+        cloudinary.uploader.add_context(
+            context=f"ordem={i}",
+            public_ids=[public_id],
+            resource_type=resource_type
+        )
 
 
 config = carregar_config()
@@ -107,12 +141,15 @@ def dashboard():
             arquivos = request.files.getlist('arquivos')
 
             for arquivo in arquivos:
-                if arquivo and arquivo.filename != '':
+                if arquivo and allowed_file(arquivo.filename) != '':
                     nome_seguro = secure_filename(arquivo.filename)
-                    resultado = cloudinary.uploader.upload(arquivo)
+                    resultado = cloudinary.uploader.upload(
+                        arquivo, 
+                        resource_type="auto"
+                        )
                     cloudinary.uploader.add_context("ordem=9999", public_ids=[resultado["public_id"]])
 
-            flash("Imagens enviadas com sucesso!")
+            flash("Mídias enviadas com sucesso!")
 
         if 'tempo' in request.form:
             novo_tempo = request.form.get("tempo", type=int)
