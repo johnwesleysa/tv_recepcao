@@ -1,33 +1,27 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 import os, json
 from werkzeug.utils import secure_filename
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-from dotenv import load_dotenv
 from functools import wraps
-
-load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'senha_super_secreta'
 
-cloudinary.config(
-    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
-)
+# Pasta de mídias
+MEDIA_FOLDER = os.path.join(app.root_path, 'midias')
+os.makedirs(MEDIA_FOLDER, exist_ok=True)
+app.config['MEDIA_FOLDER'] = MEDIA_FOLDER
 
+# Arquivos e configs
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'mp4', 'mov', 'avi', 'webm'}
 CONFIG_FILE = 'config.json'
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "1234")  # senha default se não tiver .env
 
 
 def carregar_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE) as f:
             return json.load(f)
-    return {"tempo": 7000}
+    return {"tempo": 7000, "ordem": []}
 
 
 def salvar_config(config):
@@ -40,56 +34,36 @@ def allowed_file(filename):
 
 
 def carregar_ordem():
-    imagens = []
-    
-    # Buscar imagens
-    imgs = cloudinary.api.resources(
-        type='upload', 
-        resource_type='image', 
-        prefix='', 
-        context=True, 
-        max_results=100
-    )
-    for r in imgs['resources']:
-        ordem = int(r.get('context', {}).get('custom', {}).get('ordem', 9999))
-        imagens.append({
-            "url": r['secure_url'],
-            "id": r['public_id'],
-            "ordem": ordem,
-            "resource_type": "image"
-        })
+    config = carregar_config()
+    ordem_salva = config.get("ordem", [])
 
-    # Buscar vídeos
-    vids = cloudinary.api.resources(
-        type='upload', 
-        resource_type='video', 
-        prefix='', 
-        context=True, 
-        max_results=100
-    )
-    for r in vids['resources']:
-        ordem = int(r.get('context', {}).get('custom', {}).get('ordem', 9999))
-        imagens.append({
-            "url": r['secure_url'],
-            "id": r['public_id'],
-            "ordem": ordem,
-            "resource_type": "video"
-        })
+    # Lista arquivos existentes
+    arquivos = []
+    for nome in os.listdir(MEDIA_FOLDER):
+        caminho = os.path.join(MEDIA_FOLDER, nome)
+        if os.path.isfile(caminho) and allowed_file(nome):
+            arquivos.append({
+                "url": url_for("midia", filename=nome),
+                "id": nome,
+                "ordem": ordem_salva.index(nome) if nome in ordem_salva else 9999,
+                "resource_type": "video" if nome.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) else "image"
+            })
 
-    imagens.sort(key=lambda x: x['ordem'])
-    return imagens
+    # Ordena
+    arquivos.sort(key=lambda x: x['ordem'])
+    return arquivos
 
 
 def salvar_ordem(lista):
-    for i, item in enumerate(lista):
-        public_id = item['id'] if isinstance(item, dict) else item
-        resource_type = item.get('resource_type', 'image') if isinstance(item, dict) else 'image'
+    config = carregar_config()
+    config["ordem"] = [item['id'] for item in lista]
+    salvar_config(config)
 
-        cloudinary.uploader.add_context(
-            context=f"ordem={i}",
-            public_ids=[public_id],
-            resource_type=resource_type
-        )
+
+# Rota para servir arquivos da pasta midias
+@app.route('/midias/<path:filename>')
+def midia(filename):
+    return send_from_directory(MEDIA_FOLDER, filename)
 
 
 config = carregar_config()
@@ -116,7 +90,6 @@ def login():
     if request.method == 'POST':
         senha = request.form.get('senha')
         if senha == ADMIN_PASSWORD:
-            session.permanent = False
             session['logado'] = True
             return redirect(url_for('dashboard'))
         else:
@@ -137,20 +110,17 @@ def dashboard():
     tempo = config.get("tempo", 7000)
 
     if request.method == "POST":
+        # Upload de mídias
         if 'arquivos' in request.files:
             arquivos = request.files.getlist('arquivos')
-
             for arquivo in arquivos:
-                if arquivo and allowed_file(arquivo.filename) != '':
+                if arquivo and allowed_file(arquivo.filename):
                     nome_seguro = secure_filename(arquivo.filename)
-                    resultado = cloudinary.uploader.upload(
-                        arquivo, 
-                        resource_type="auto"
-                        )
-                    cloudinary.uploader.add_context("ordem=9999", public_ids=[resultado["public_id"]])
-
+                    caminho = os.path.join(MEDIA_FOLDER, nome_seguro)
+                    arquivo.save(caminho)
             flash("Mídias enviadas com sucesso!")
 
+        # Atualização do tempo
         if 'tempo' in request.form:
             novo_tempo = request.form.get("tempo", type=int)
             config["tempo"] = novo_tempo
@@ -165,12 +135,12 @@ def dashboard():
 @app.route('/deletar/<filename>', methods=['POST'])
 @login_required
 def deletar(filename):
-    try:
-        cloudinary.uploader.destroy(filename)
-        flash(f"Imagem {filename} removida com sucesso!")
-    except Exception as e:
-        flash(f"Erro ao deletar: {str(e)}")
-
+    caminho = os.path.join(MEDIA_FOLDER, filename)
+    if os.path.exists(caminho):
+        os.remove(caminho)
+        flash(f"Arquivo {filename} removido com sucesso!")
+    else:
+        flash(f"Arquivo {filename} não encontrado!")
     return redirect(url_for('dashboard'))
 
 
@@ -179,13 +149,12 @@ def deletar(filename):
 def deletar_multiplas():
     ids_selecionadas = request.form.getlist('selecionadas')
 
-    for img_id in ids_selecionadas:
-        try:
-            cloudinary.uploader.destroy(img_id)
-        except Exception as e:
-            print(f"Erro ao deletar {img_id}: {e}")
+    for nome in ids_selecionadas:
+        caminho = os.path.join(MEDIA_FOLDER, nome)
+        if os.path.exists(caminho):
+            os.remove(caminho)
 
-    flash(f"{len(ids_selecionadas)} imagem(ns) deletada(s) com sucesso.")
+    flash(f"{len(ids_selecionadas)} arquivo(s) deletado(s) com sucesso.")
     return redirect(url_for('dashboard'))
 
 
