@@ -155,12 +155,14 @@ def gerar_video_slideshow():
 
             final_clip = ffmpeg.concat(*processed_clips, v=1, a=0).output(
                 FINAL_VIDEO_PATH,
-                # <<< PARÂMETROS DE OTIMIZAÇÃO ADICIONADOS AQUI >>>
-                vcodec='libx264',      # Codec de vídeo mais compatível (H.264)
-                crf=24,                # Fator de compressão (23-28 é um bom balanço. Menor = melhor qualidade)
-                preset='medium',       # Balanço entre velocidade de compressão e tamanho do arquivo
-                pix_fmt='yuv420p',     # Formato de pixel para máxima compatibilidade
-                movflags='+faststart'  # OTIMIZAÇÃO CRÍTICA para streaming na web
+                vcodec='libx264',
+                crf=25,               # Aumentei um pouco a compressão para ajudar no tamanho
+                preset='medium',
+                pix_fmt='yuv420p',
+                movflags='+faststart',
+                # <<< NOVAS OPÇÕES DE COMPATIBILIDADE MÁXIMA >>>
+                profile='main',       # Perfil de codificação super compatível
+                level='4.0'           # Nível que garante compatibilidade com 1080p na maioria dos dispositivos
             )
 
             _, stderr = final_clip.run(overwrite_output=True, capture_stderr=True)
