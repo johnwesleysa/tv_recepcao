@@ -113,7 +113,6 @@ def gerar_video_slideshow():
     with app.app_context():
         global VIDEO_GENERATION_STATUS
         try:
-            # <<< ADICIONADO: 'progress': 0 para iniciar a barra >>>
             VIDEO_GENERATION_STATUS = {'status': 'processando', 'mensagem': 'Iniciando geração...', 'progress': 0}
             config = carregar_config()
             tempo_imagem_s = config.get("tempo", 7000) / 1000.0
@@ -134,19 +133,15 @@ def gerar_video_slideshow():
                     lista_midias_simples.append({"id": nome, "resource_type": "video" if nome.lower().endswith(('.mp4', '.mov', '.avi', '.webm')) else "image"})
             
             if not lista_midias_simples:
-                # <<< ADICIONADO: 'progress': 0 em caso de erro >>>
                 VIDEO_GENERATION_STATUS = {'status': 'erro', 'mensagem': 'Nenhuma mídia para processar.', 'progress': 0}
                 if os.path.exists(FINAL_VIDEO_PATH): os.remove(FINAL_VIDEO_PATH)
                 return
 
             processed_clips, resolucao = [], "1920x1080"
-            
-            # <<< ADICIONADO: Pega o número total de mídias para o cálculo >>>
             total_midias = len(lista_midias_simples)
 
             for i, midia in enumerate(lista_midias_simples):
-                # <<< ADICIONADO: Lógica para calcular e atualizar o progresso >>>
-                progress = int(((i + 1) / total_midias) * 95) # Vai até 95%, os 5% finais são para a concatenação
+                progress = int(((i + 1) / total_midias) * 95)
                 VIDEO_GENERATION_STATUS['progress'] = progress
                 VIDEO_GENERATION_STATUS['mensagem'] = f"Processando mídia {i+1} de {total_midias}: {midia['id']}"
                 
@@ -155,23 +150,29 @@ def gerar_video_slideshow():
                 clip = clip.filter('scale', resolucao.split('x')[0], resolucao.split('x')[1], force_original_aspect_ratio='decrease').filter('pad', resolucao.split('x')[0], resolucao.split('x')[1], '(ow-iw)/2', '(oh-ih)/2').filter('setsar', 1).filter('format', 'yuv420p')
                 processed_clips.append(clip)
             
-            # <<< ADICIONADO: Atualiza o status e progresso para a etapa final >>>
             VIDEO_GENERATION_STATUS['mensagem'] = f'Finalizando... Concatenando {len(processed_clips)} clipes.'
             VIDEO_GENERATION_STATUS['progress'] = 98
 
-            final_clip = ffmpeg.concat(*processed_clips, v=1, a=0).output(FINAL_VIDEO_PATH, pix_fmt='yuv420p')
-            _, stderr = final_clip.run(overwrite_output=True, capture_stderr=True)
+            final_clip = ffmpeg.concat(*processed_clips, v=1, a=0).output(
+                FINAL_VIDEO_PATH,
+                # <<< PARÂMETROS DE OTIMIZAÇÃO ADICIONADOS AQUI >>>
+                vcodec='libx264',      # Codec de vídeo mais compatível (H.264)
+                crf=24,                # Fator de compressão (23-28 é um bom balanço. Menor = melhor qualidade)
+                preset='medium',       # Balanço entre velocidade de compressão e tamanho do arquivo
+                pix_fmt='yuv420p',     # Formato de pixel para máxima compatibilidade
+                movflags='+faststart'  # OTIMIZAÇÃO CRÍTICA para streaming na web
+            )
 
-            # <<< ADICIONADO: 'progress': 100 na conclusão >>>
+            _, stderr = final_clip.run(overwrite_output=True, capture_stderr=True)
+            
             VIDEO_GENERATION_STATUS = {'status': 'pronto', 'mensagem': 'Vídeo atualizado com sucesso!', 'progress': 100}
 
         except ffmpeg.Error as e:
             error_details = e.stderr.decode('utf-8') if e.stderr else 'Unknown FFmpeg error'
-            # <<< ADICIONADO: 'progress': 0 em caso de erro >>>
             VIDEO_GENERATION_STATUS = {'status': 'erro', 'mensagem': f'Erro no FFmpeg: {error_details}', 'progress': 0}
         except Exception as e:
-            # <<< ADICIONADO: 'progress': 0 em caso de erro >>>
             VIDEO_GENERATION_STATUS = {'status': 'erro', 'mensagem': f'Erro na geração: {e}', 'progress': 0}
+
 
 def iniciar_geracao_video():
     """Inicia a função de gerar vídeo em uma thread para não travar a aplicação."""
