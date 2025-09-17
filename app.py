@@ -224,35 +224,46 @@ def logout():
 @login_required
 def dashboard():
     config = carregar_config()
+    # A lógica de POST agora só trata do formulário de tempo
     if request.method == "POST":
-        mudanca_realizada = False
-        if 'arquivos' in request.files and request.files.getlist('arquivos')[0].filename:
-            # <<< CÓDIGO MODIFICADO AQUI PARA CAPTURAR O ERRO >>>
-            try:
-                arquivos = request.files.getlist('arquivos')
-                for arquivo in arquivos:
-                    if arquivo and allowed_file(arquivo.filename):
-                        nome_seguro = secure_filename(arquivo.filename)
-                        arquivo.save(os.path.join(MEDIA_FOLDER, nome_seguro))
-                        # Tenta gerar o thumbnail se for um vídeo
-                        if nome_seguro.lower().endswith(('.mp4', '.mov', 'avi', 'webm')):
-                            gerar_thumbnail_video(nome_seguro)
-                flash(f"{len(arquivos)} mídia(s) enviada(s) com sucesso!")
-                mudanca_realizada = True
-            except Exception as e:
-                # Se a geração do thumbnail falhar, exibe uma mensagem de erro clara
-                flash(f"Os arquivos foram enviados, mas houve um erro ao gerar a miniatura de um vídeo: {e}", "error")
-
         if 'tempo' in request.form:
             novo_tempo = request.form.get("tempo", type=int)
             if config["tempo"] != novo_tempo:
                 config["tempo"] = novo_tempo; salvar_config(config)
-                flash("Tempo atualizado com sucesso!"); mudanca_realizada = True
-        
-        if mudanca_realizada: iniciar_geracao_video()
+                flash("Tempo atualizado com sucesso!")
+                # Dispara a geração de vídeo se o tempo mudar
+                iniciar_geracao_video()
         return redirect(url_for("dashboard"))
     
     return render_template("dashboard.html", imagens=carregar_ordem(), tempo=config.get("tempo", 7000), status_video=VIDEO_GENERATION_STATUS)
+
+# <<< ROTA NOVA PARA RECEBER ARQUIVOS INDIVIDUALMENTE >>>
+@app.route('/upload-media', methods=['POST'])
+@login_required
+def upload_media():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'status': 'error', 'message': 'Nenhum arquivo enviado'}), 400
+        
+        arquivo = request.files['file']
+        if arquivo and allowed_file(arquivo.filename):
+            nome_seguro = secure_filename(arquivo.filename)
+            arquivo.save(os.path.join(MEDIA_FOLDER, nome_seguro))
+            if nome_seguro.lower().endswith(('.mp4', '.mov', '.avi', '.webm')):
+                gerar_thumbnail_video(nome_seguro)
+            return jsonify({'status': 'success', 'filename': nome_seguro})
+        else:
+            return jsonify({'status': 'error', 'message': 'Tipo de arquivo não permitido'}), 400
+    except Exception as e:
+        # Se a geração do thumbnail falhar, reporta o erro
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# <<< ROTA NOVA PARA INICIAR A GERAÇÃO APÓS O UPLOAD >>>
+@app.route('/start-generation', methods=['POST'])
+@login_required
+def start_generation():
+    iniciar_geracao_video()
+    return jsonify({'status': 'ok', 'message': 'Geração de vídeo iniciada.'})
 
 @app.route('/deletar-multiplas', methods=['POST'])
 @login_required
