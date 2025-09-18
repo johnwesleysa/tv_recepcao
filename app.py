@@ -6,6 +6,8 @@ from functools import wraps
 import threading
 import ffmpeg
 import uuid
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'Eleva@2025'
@@ -24,7 +26,7 @@ FINAL_VIDEO_PATH = os.path.join(OUTPUT_FOLDER, FINAL_VIDEO_FILENAME)
 # --- CONFIGURAÇÕES DE ARQUIVOS E SENHA ---
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'mp4', 'mov', 'avi', 'webm'}
 CONFIG_FILE = 'config.json'
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "1234")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 # --- CONTROLE DE GERAÇÃO DE VÍDEO ---
 # Variável global para armazenar o status da tarefa em segundo plano
