@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Slideshow Automático</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: black;
+    }
+    #video-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div id="video-container">
+    <video id="slideshow-video" src="{{ video_file }}?v={{ range(1, 10000) | random }}" autoplay muted loop playsinline></video>
+  </div>
+
+  <script>
+    const video = document.getElementById('slideshow-video');
+    
+    // Tenta reiniciar o vídeo em caso de erro de rede ou falha no carregamento
+    video.addEventListener('error', function() {
+      console.error('Erro ao carregar o vídeo. Tentando recarregar em 5 segundos...');
+      setTimeout(function() {
+        video.load();
+        video.play();
+      }, 5000);
+    });
+  </script>
+
+</body>
+</html>

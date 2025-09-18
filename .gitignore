@@ -1,1 +1,15 @@
 .env
+midias/
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.flv
+*.wmv
+*.m4v
+venv/
+__pycache__/
+*.pyc
+config.json
+*.env
+.env
